@@ -1,40 +1,47 @@
-# Rechtsanwalt Donnerfaust – vollständiges RP-Kanzleisystem
+# Rechtsanwalt Donnerfaust – GitHub Pages Edition
 
-Dieses Projekt enthält Frontend **und** Backend in einem Projekt.
+## Ziel
+Persönliches Kanzleisystem für RP, das **ausschließlich als statische GitHub-Pages-Webseite** läuft.
+
+Kein Node.js, kein PHP, keine externe Datenbank.
 
 ## Enthalten
-- Node.js + Express Backend
-- SQLite-Datenbank
-- Mandantenverwaltung mit Such-/Vorschlagsfunktion
-- vollständige Akten
+- Dashboard
+- Mandantenverwaltung
+- automatische Mandantensuche/Vorschläge
+- vollständige digitale Akten
 - Aktenzeichen
-- Vorfall, Hintergrund, Gegnerseite, Gericht, Fristen
-- Rechnungen mit automatischem Status `Offen`
-- anklickbarer Rechnungsstatus: Offen → Bezahlt → Überfällig → Offen
+- Vorfall / Gegenstand
+- Hintergrund / Sachverhalt
+- Gegnerseite
+- zuständiges Gericht
+- Fristen
+- Aktenstatus
+- Rechnungen
+- neue Rechnungen automatisch `Offen`
+- Rechnungsstatus per Klick: Offen → Bezahlt → Überfällig → Offen
 - Termine
 - Aufgaben
-- Dokumenteinträge
+- Dokumentenverzeichnis
 - Notizen
 - interne Nachrichten
 - Ankündigungen
 - Mitarbeiter
 - zentrale Suche
+- Benachrichtigungen
 - Aktivitätsprotokoll
-- JSON-Datenexport
+- Datenexport und Wiederherstellung
 - mobile Oberfläche
 
-## Start
-1. Node.js installieren
-2. Im Projektordner `npm install`
-3. `npm start`
-4. Browser auf `http://localhost:3000`
+## Speicherung
+Die Datenbank wird lokal im Browser über `localStorage` gespeichert. Das ist bewusst so gewählt, weil GitHub Pages keinen serverseitigen Code ausführen kann.
 
-Beim ersten Start wird `data/kanzlei.db` automatisch erzeugt.
+**Wichtig:** Wenn Browserdaten gelöscht werden oder ein anderes Gerät benutzt wird, sind die Daten dort nicht automatisch vorhanden. Deshalb regelmäßig über `Verwaltung → Daten sichern` ein Backup erstellen.
 
-## Deployment
-Das Projekt braucht einen Node.js-Host, nicht GitHub Pages allein. GitHub kann den Quellcode verwalten; der Server muss die Anwendung ausführen.
+## GitHub Pages
+Den Inhalt dieses Projekts hochladen bzw. in das Repository übernehmen und GitHub Pages auf den Branch/Ordner mit `public` als Webseite konfigurieren.
 
-Für das RP-System ist bewusst keine komplizierte Multi-Tenant-Architektur enthalten. Ein einzelner Kanzleiinhaber ist der Standardfall. Mitarbeiter können später ergänzt werden.
+Falls das Repository direkt als Pages-Root verwendet wird, den Inhalt von `public/` in den Pages-Root legen.
 
-## Hinweis
-Nur für Roleplay. Keine echten Mandanten-, Gesundheits-, Finanz- oder sonstigen vertraulichen Daten verwenden, solange keine angemessene Authentifizierung, Verschlüsselung, Backups und Zugriffskontrolle eingerichtet sind.
+## RP-Hinweis
+Nur für Roleplay gedacht. Keine echten vertraulichen Mandanten- oder Gesundheitsdaten verwenden.
