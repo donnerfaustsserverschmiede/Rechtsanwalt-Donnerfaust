@@ -1,14 +1,40 @@
-# Rechtsanwalt Donnerfaust – RP-Kanzleisystem
+# Rechtsanwalt Donnerfaust – vollständiges RP-Kanzleisystem
 
-Fertige statische RP-Webanwendung für GitHub Pages.
+Dieses Projekt enthält Frontend **und** Backend in einem Projekt.
 
-Enthalten: Dashboard, Akten & Fälle, Mandanten, Verfahren, Kalender, Aufgaben,
-Dokumente, Gebühren/Rechnungen, Nachrichten, Benachrichtigungen, Ankündigungen,
-Notizen, zentrale Suche, Mitarbeiter, Verwaltung, Aktivitätsprotokoll, Preisliste
-und PWA-Grundlage.
+## Enthalten
+- Node.js + Express Backend
+- SQLite-Datenbank
+- Mandantenverwaltung mit Such-/Vorschlagsfunktion
+- vollständige Akten
+- Aktenzeichen
+- Vorfall, Hintergrund, Gegnerseite, Gericht, Fristen
+- Rechnungen mit automatischem Status `Offen`
+- anklickbarer Rechnungsstatus: Offen → Bezahlt → Überfällig → Offen
+- Termine
+- Aufgaben
+- Dokumenteinträge
+- Notizen
+- interne Nachrichten
+- Ankündigungen
+- Mitarbeiter
+- zentrale Suche
+- Aktivitätsprotokoll
+- JSON-Datenexport
+- mobile Oberfläche
 
-Die Anwendung benötigt für die RP-Nutzung kein externes Backend. Daten werden
-lokal im Browser gespeichert. Sie ist als Frontend für GitHub Pages gedacht.
+## Start
+1. Node.js installieren
+2. Im Projektordner `npm install`
+3. `npm start`
+4. Browser auf `http://localhost:3000`
 
-Wichtig: Dies ist eine RP-Anwendung und kein System für echte Mandanten- oder
-vertrauliche Rechtsdaten.
+Beim ersten Start wird `data/kanzlei.db` automatisch erzeugt.
+
+## Deployment
+Das Projekt braucht einen Node.js-Host, nicht GitHub Pages allein. GitHub kann den Quellcode verwalten; der Server muss die Anwendung ausführen.
+
+Für das RP-System ist bewusst keine komplizierte Multi-Tenant-Architektur enthalten. Ein einzelner Kanzleiinhaber ist der Standardfall. Mitarbeiter können später ergänzt werden.
+
+## Hinweis
+Nur für Roleplay. Keine echten Mandanten-, Gesundheits-, Finanz- oder sonstigen vertraulichen Daten verwenden, solange keine angemessene Authentifizierung, Verschlüsselung, Backups und Zugriffskontrolle eingerichtet sind.
