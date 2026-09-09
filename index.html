@@ -1,16 +1,16 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><title>Rechtsanwalt Donnerfaust</title><link rel="stylesheet" href="./style.css?v=3"></head><body><div id="app"><div class="loading">Kanzleisystem wird geladen…</div></div><script>
-(async()=>{
-const LEGACY='https://raw.githubusercontent.com/donnerfaustsserverschmiede/Rechtsanwalt-Donnerfaust/75184e059aa691f9cd2bccc14813f355536eeeda/index.html';
-try{
- const html=await (await fetch(LEGACY,{cache:'no-store'})).text();
- const doc=new DOMParser().parseFromString(html,'text/html');
- document.head.innerHTML=doc.head.innerHTML;
- document.body.innerHTML=doc.body.innerHTML.replace(/<script[\\s\\S]*?<\\/script>/gi,'');
- const sync=document.createElement('script');sync.src='./supabase-sync.js?v=1';document.body.appendChild(sync);
- for(const old of doc.querySelectorAll('script')){
-   if(old.src) continue;
-   const s=document.createElement('script');s.textContent=old.textContent;document.body.appendChild(s);
- }
-}catch(e){document.getElementById('app').innerHTML='<div style="font-family:system-ui;max-width:700px;margin:50px auto;padding:30px;background:#fff;border:1px solid #ddd;border-radius:16px"><h1>Fehler beim Laden</h1><p>Die Kanzlei-Oberfläche konnte nicht geladen werden.</p><pre style="white-space:pre-wrap">'+String(e.stack||e.message||e).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</pre></div>'}
-})();
-</script></body></html>
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827">
+<title>Rechtsanwalt Donnerfaust</title>
+<link rel="stylesheet" href="./style.css?v=4">
+</head>
+<body>
+<div id="app"><div class="loading">Kanzleisystem wird geladen…</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-sync.js?v=4"></script>
+<script src="./app.js?v=4"></script>
+</body>
+</html>
