@@ -1,6 +1,6 @@
-/* Rechtsanwalt Donnerfaust – Verbindung Rechnungen <-> Mitarbeiter
-   Der abrechnende Mitarbeiter wird direkt aus der bestehenden Mitarbeiterliste
-   übernommen. Auch der Kanzleiinhaber ist auswählbar.
+/* Rechnungen <-> Mitarbeiter – robuste Zuordnung
+   Die Mitarbeiterliste wird aus dem zentralen Kanzleistatus übernommen.
+   Jeder vorhandene Mitarbeiter kann beim Erstellen einer Rechnung ausgewählt werden.
 */
 (() => {
   const DBKEY = "donnerfaust_kanzlei_v1";
@@ -8,54 +8,94 @@
   const write = d => localStorage.setItem(DBKEY, JSON.stringify(d));
   const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
 
-  function employees() {
+  function localEmployees() {
     const d = read();
-    return Array.isArray(d.employees) ? d.employees : [];
+    return Array.isArray(d.employees) ? d.employees.filter(e => e && e.id) : [];
   }
 
-  function addEmployeeField(form) {
-    if (!form || form.querySelector('[name="employee_id"]')) return;
+  async function hydrateEmployees() {
+    try {
+      const client = window.DonnerfaustCloud?.supabase;
+      if (!client) return;
+      const { data, error } = await client.from("kanzlei_state").select("data").eq("id", "main").maybeSingle();
+      if (error || !data?.data || !Array.isArray(data.data.employees)) return;
+      const current = read();
+      /* Die zentrale Mitarbeiterliste ist maßgeblich; andere lokale Daten bleiben unangetastet. */
+      current.employees = data.data.employees;
+      write(current);
+      refresh();
+    } catch (e) {
+      console.debug("Mitarbeiter-Synchronisierung für Rechnung fehlgeschlagen", e);
+    }
+  }
 
-    const list = employees();
+  function fillEmployeeSelect(select) {
+    if (!select) return;
+    const current = select.value || "";
+    const list = localEmployees();
+    const signature = list.map(e => `${e.id}:${e.name}:${e.role || ""}`).join("|");
+    if (select.dataset.employeeSignature === signature && select.options.length === list.length + 1) return;
+    select.innerHTML = ['<option value="">Keinem Mitarbeiter zugeordnet</option>']
+      .concat(list.map(e => `<option value="${esc(e.id)}">${esc(e.name || "Unbenannt")}${e.role ? ` · ${esc(e.role)}` : ""}</option>`)).join("");
+    select.value = list.some(e => String(e.id) === String(current)) ? current : "";
+    select.dataset.employeeSignature = signature;
+  }
+
+  function ensureField(form) {
+    if (!form) return;
+    let select = form.querySelector('[name="employee_id"]');
+    if (select) { fillEmployeeSelect(select); return; }
+    const list = localEmployees();
     const wrap = document.createElement("label");
-    wrap.innerHTML = `Abrechnender Mitarbeiter<select name="employee_id"><option value="">Keinem Mitarbeiter zugeordnet</option>${list.map(e => `<option value="${esc(e.id)}">${esc(e.name)}${e.role ? ` · ${esc(e.role)}` : ""}</option>`).join("")}</select><small style="display:block;color:#667085;margin-top:4px">Der ausgewählte Mitarbeiter erhält 20 % der Rechnungssumme, sobald die Rechnung bezahlt ist.</small>`;
-
+    wrap.dataset.dfEmployeeField = "1";
+    wrap.innerHTML = `Abrechnender Mitarbeiter<select name="employee_id"><option value="">Keinem Mitarbeiter zugeordnet</option>${list.map(e => `<option value="${esc(e.id)}">${esc(e.name || "Unbenannt")}${e.role ? ` · ${esc(e.role)}` : ""}</option>`).join("")}</select><small style="display:block;color:#667085;margin-top:4px">Der ausgewählte Mitarbeiter erhält 20 % der Rechnungssumme, sobald die Rechnung bezahlt ist.</small>`;
     const caseSelect = form.querySelector('[name="case_id"]');
     if (caseSelect?.parentElement) caseSelect.parentElement.insertAdjacentElement("afterend", wrap);
     else form.querySelector('.actions')?.insertAdjacentElement("beforebegin", wrap);
+    fillEmployeeSelect(wrap.querySelector('select[name="employee_id"]'));
+  }
+
+  function isInvoiceForm(form) {
+    const heading = form?.closest('.modal')?.querySelector('.modalhead b')?.textContent || "";
+    return /Rechnung/i.test(heading);
   }
 
   function bindForm(form) {
-    if (!form || form.dataset.employeeBridgeBound) return;
-    const heading = form.closest('.modal')?.querySelector('.modalhead b')?.textContent || "";
-    if (!/Rechnung/.test(heading)) return;
-
-    form.dataset.employeeBridgeBound = "1";
-    addEmployeeField(form);
-
-    form.addEventListener('submit', () => {
+    if (!isInvoiceForm(form)) return;
+    ensureField(form);
+    if (form.dataset.dfEmployeeBridgeBound) return;
+    form.dataset.dfEmployeeBridgeBound = "1";
+    form.addEventListener("submit", () => {
       const employeeId = form.querySelector('[name="employee_id"]')?.value || "";
-      if (!employeeId) return;
-
+      window.__dfPendingInvoiceEmployee = employeeId;
+      window.__dfPendingInvoiceTimestamp = Date.now();
       setTimeout(() => {
+        const pending = window.__dfPendingInvoiceEmployee;
         const d = read();
         const invoices = d.invoices || [];
         const latest = invoices[invoices.length - 1];
-        if (latest && !latest.employee_id) {
-          latest.employee_id = employeeId;
+        if (pending && latest && !latest.employee_id && Date.now() - (window.__dfPendingInvoiceTimestamp || 0) < 3000) {
+          latest.employee_id = pending;
           write(d);
         }
-      }, 50);
+        window.__dfPendingInvoiceEmployee = "";
+      }, 100);
     });
   }
 
-  function attach() {
-    const scan = () => document.querySelectorAll('form').forEach(bindForm);
-    scan();
-    const observer = new MutationObserver(scan);
-    observer.observe(document.body, { childList: true, subtree: true });
+  function refresh() {
+    document.querySelectorAll('form').forEach(bindForm);
+    document.querySelectorAll('select[name="employee_id"]').forEach(fillEmployeeSelect);
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", attach);
-  else attach();
+  const observer = new MutationObserver(refresh);
+  function start() {
+    refresh();
+    observer.observe(document.body, { childList: true, subtree: true });
+    hydrateEmployees();
+    setInterval(refresh, 1000);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();
