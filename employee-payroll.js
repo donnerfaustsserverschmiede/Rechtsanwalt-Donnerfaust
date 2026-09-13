@@ -29,10 +29,19 @@
   const entriesTotal = p => Object.values(p.entries || {}).reduce((s,v) => s + Math.max(0, Number(v) || 0), 0);
   const hourlyTotal = (e,p) => entriesTotal(p) * (HOURLY[roleOf(e)] || 0);
 
-  /* 20 % erhalten ALLE Rollen außer Assistent und Sekretär. */
+  /*
+     20 % erhalten AUSNAHMSLOS alle Rollen außer Assistent und Sekretär.
+     Die Zuordnung wird bewusst robust gegen ältere Rechnungsdaten geprüft:
+     employee_id, lawyer_id, employeeId und responsible_employee_id werden akzeptiert.
+     Bestehende bezahlte Rechnungen werden damit automatisch rückwirkend berücksichtigt,
+     solange für diese Rechnung noch keine Mitarbeiter-Auszahlung verbucht wurde.
+  */
   function caseAmount(id) {
     const d = read();
-    return (d.invoices || []).filter(i => i.status === "Bezahlt" && !i.employee_paid_at && (i.employee_id === id || i.lawyer_id === id))
+    const sameId = v => String(v ?? "") === String(id ?? "");
+    const isPaid = i => ["Bezahlt","bezahlt","Paid","paid"].includes(String(i?.status || "").trim());
+    const assigned = i => [i?.employee_id, i?.lawyer_id, i?.employeeId, i?.assigned_employee_id, i?.responsible_employee_id].some(sameId);
+    return (d.invoices || []).filter(i => isPaid(i) && !i.employee_paid_at && assigned(i))
       .reduce((s,i) => s + Math.max(0, Number(i.amount) || 0) * 0.20, 0);
   }
   function currentAmount(e) {
@@ -82,7 +91,7 @@
     const p = ensurePay(e), amount = currentAmount(e); if (amount <= 0) return alert("Kein auszuzahlender Betrag vorhanden."); d.cashbook ||= [];
     const balance = d.cashbook.reduce((s,x) => s + (x.kind === "in" ? 1 : -1) * (Number(x.amount)||0), 0); if (balance < amount) return alert(`Kassenbestand zu niedrig: ${eur(balance)} verfügbar, ${eur(amount)} benötigt.`);
     d.cashbook.push({id:uid(), kind:"out", type:"Auszahlung", amount, reason:`Mitarbeiterzahlung: ${e.name} (${roleOf(e)})`, date:new Date().toLocaleString("de-DE"), source:"employee", employee_id:e.id});
-    (d.invoices || []).filter(i => i.status === "Bezahlt" && !i.employee_paid_at && (i.employee_id === id || i.lawyer_id === id)).forEach(i => i.employee_paid_at = new Date().toLocaleString("de-DE"));
+    (d.invoices || []).filter(i => ["Bezahlt","bezahlt","Paid","paid"].includes(String(i?.status || "").trim()) && !i.employee_paid_at && [i?.employee_id, i?.lawyer_id, i?.employeeId, i?.assigned_employee_id, i?.responsible_employee_id].some(v => String(v ?? "") === String(id ?? ""))).forEach(i => i.employee_paid_at = new Date().toLocaleString("de-DE"));
     p.earned = 0; p.entries = {}; const all = loadPay(); all[id] = p; savePay(all); write(d); if (typeof log === "function") log(`Mitarbeiter ausgezahlt: ${e.name} · ${eur(amount)}`); if (typeof render === "function") render();
   }
   function bind() {
