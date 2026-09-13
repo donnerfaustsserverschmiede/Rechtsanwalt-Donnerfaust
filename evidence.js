@@ -1,67 +1,23 @@
-/* Beweise: Upload in Supabase Storage + öffentliche Einzelansicht ohne Kanzlei-Login. */
+/* Beweise: Ordner mit beliebig vielen Bildern/Videos + ein gemeinsamer externer Link. */
 (() => {
-  const URL = "https://qsyijgvikxmwmhaiulne.supabase.co";
-  const KEY = "sb_publishable_5qeUg0c0T0IyLh8g0cUj6Q_ZJYgZYJ_";
-  const BUCKET = "evidence";
-  const STATE_KEY = "donnerfaust_kanzlei_v1";
-  const VIEWER = "./beweis.html";
-  const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
-  const read = () => { try { return JSON.parse(localStorage.getItem(STATE_KEY)||"{}"); } catch { return {}; } };
-  const write = db => localStorage.setItem(STATE_KEY, JSON.stringify(db));
-  const client = window.supabase?.createClient ? window.supabase.createClient(URL, KEY) : null;
-  let activeCase = "";
-
-  function addNav(){
-    const nav=document.querySelector(".sidebar nav");
-    if(!nav || nav.querySelector('[data-evidence-nav]')) return;
-    const b=document.createElement("button"); b.className="nav"; b.dataset.evidenceNav="1"; b.innerHTML="<i>🔎</i>Beweise";
-    b.onclick=()=>openPanel(""); nav.appendChild(b);
-  }
-
+  const URL="https://qsyijgvikxmwmhaiulne.supabase.co", KEY="sb_publishable_5qeUg0c0T0IyLh8g0cUj6Q_ZJYgZYJ_", BUCKET="evidence", STATE_KEY="donnerfaust_kanzlei_v1", VIEWER="./beweis.html";
+  const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+  const read=()=>{try{return JSON.parse(localStorage.getItem(STATE_KEY)||"{}")}catch{return {}}}; const write=x=>localStorage.setItem(STATE_KEY,JSON.stringify(x));
+  const client=window.supabase?.createClient?window.supabase.createClient(URL,KEY):null; let activeCase="";
+  const id=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  function addNav(){const nav=document.querySelector(".sidebar nav");if(!nav||nav.querySelector('[data-evidence-nav]'))return;const b=document.createElement("button");b.className="nav";b.dataset.evidenceNav="1";b.innerHTML="<i>🔎</i>Beweise";b.onclick=()=>openPanel("");nav.appendChild(b)}
+  function folderUrl(id){const u=new URL(VIEWER,location.href);u.searchParams.set("folder",id);return u.href}
   function openPanel(caseId=""){
-    activeCase=caseId||"";
-    const db=read(); const cases=db.cases||[]; const items=(db.evidence||[]).filter(x=>!activeCase||x.case_id===activeCase);
-    const root=document.getElementById("modalroot")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"modalroot"}));
-    root.innerHTML=`<div class="modalback"><div class="modal" style="max-width:820px"><div class="modalhead"><b>Beweise</b><button id="evClose">×</button></div>
-      <form id="evForm">
-        <label>Name des Beweises<input name="name" required placeholder="z. B. Überwachungsvideo 08.08.2026"></label>
-        <label>Akte<select name="case_id"><option value="">Allgemeiner Beweis</option>${cases.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCase?"selected":""}>${esc(c.file_number)} · ${esc(c.title)}</option>`).join("")}</select></label>
-        <label>Datei (Bild oder Video)<input name="file" type="file" accept="image/*,video/*" required></label>
-        <div id="evStatus" class="muted">Maximalgröße hängt von deiner Supabase-Storage-Konfiguration ab.</div>
-        <div class="actions"><button type="button" class="btn outline" id="evCancel">Abbrechen</button><button class="btn dark" id="evUpload">Beweis hochladen</button></div>
-      </form>
-      <hr><h3>Vorhandene Beweise</h3><div>${items.map(x=>`<div class="listrow"><b>${esc(x.name)}</b><small>${esc(x.type)}${x.case_id?" · "+esc(cases.find(c=>c.id===x.case_id)?.file_number||""):""}</small><a class="mini" target="_blank" rel="noopener" href="${esc(x.viewer_url)}">Öffnen</a></div>`).join("")||'<p class="muted">Noch keine Beweise.</p>'}</div>
+    activeCase=caseId||"";const db=read(),cases=db.cases||[],folders=(db.evidence_folders||[]).filter(x=>!activeCase||x.case_id===activeCase);const root=document.getElementById("modalroot")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"modalroot"}));
+    root.innerHTML=`<div class="modalback"><div class="modal" style="max-width:900px"><div class="modalhead"><b>Beweisordner</b><button id="evClose">×</button></div>
+      <form id="folderForm"><label>Name des Beweisordners<input name="name" required placeholder="z. B. Beweismittel Akte AZ-2026-001"></label><label>Akte<select name="case_id"><option value="">Allgemeiner Beweisordner</option>${cases.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCase?"selected":""}>${esc(c.file_number)} · ${esc(c.title)}</option>`).join("")}</select></label><button class="btn dark">+ Ordner anlegen</button></form><hr>
+      ${folders.map(f=>`<div class="panel" style="margin:12px 0"><div class="panelhead"><b>📁 ${esc(f.name)}</b><span>${(f.items||[]).length} Dateien</span></div><div class="actions"><button class="btn outline" data-add="${f.id}">+ Bild/Video hinzufügen</button><button class="btn outline" data-share="${f.id}">🔗 Gemeinsamen Link kopieren</button></div><div>${(f.items||[]).map(x=>`<div class="listrow"><b>${esc(x.name)}</b><small>${esc(x.type||"")}</small></div>`).join("")||'<p class="muted">Noch keine Dateien.</p>'}</div>`).join("")||'<p class="muted">Noch keine Beweisordner.</p>'}
     </div></div>`;
-    document.getElementById("evClose").onclick=document.getElementById("evCancel").onclick=()=>root.innerHTML="";
-    document.getElementById("evForm").onsubmit=upload;
+    document.getElementById("evClose").onclick=()=>root.innerHTML="";document.getElementById("folderForm").onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),db=read();db.evidence_folders=db.evidence_folders||[];db.evidence_folders.push({id:id(),name:String(f.get("name")||"").trim(),case_id:String(f.get("case_id")||""),items:[],created_at:new Date().toISOString()});write(db);openPanel(activeCase)};
+    root.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>addFile(b.dataset.add));root.querySelectorAll("[data-share]").forEach(b=>b.onclick=()=>{const u=folderUrl(b.dataset.share);navigator.clipboard?.writeText(u);alert("Gemeinsamer Ordner-Link kopiert:\n\n"+u)});
   }
-
-  async function upload(e){
-    e.preventDefault();
-    if(!client){alert("Supabase ist nicht verfügbar.");return;}
-    const f=new FormData(e.target), name=String(f.get("name")||"").trim(), file=f.get("file"), caseId=String(f.get("case_id")||"");
-    if(!name || !(file instanceof File)){return;}
-    const status=document.getElementById("evStatus"), btn=document.getElementById("evUpload");
-    btn.disabled=true; status.textContent="Beweis wird hochgeladen…";
-    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-    const path=`${new Date().getFullYear()}/${Date.now()}-${safe}`;
-    const {error}=await client.storage.from(BUCKET).upload(path,file,{contentType:file.type||"application/octet-stream",upsert:false});
-    if(error){status.textContent="Upload fehlgeschlagen: "+error.message;btn.disabled=false;return;}
-    const publicUrl=client.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-    const params=new URLSearchParams({name,url:publicUrl,type:file.type||"Datei"});
-    const viewerUrl=`${location.origin}${location.pathname.replace(/[^/]*$/,'')}${VIEWER}?${params.toString()}`;
-    const db=read(); db.evidence=db.evidence||[];
-    db.evidence.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name,case_id:caseId,type:file.type||"Datei",file_name:file.name,path,public_url:publicUrl,viewer_url:viewerUrl,created_at:new Date().toISOString()});
-    write(db);
-    status.innerHTML=`Beweis gespeichert. <a href="${esc(viewerUrl)}" target="_blank">Öffentlichen Link öffnen</a>`;
-    btn.disabled=false; setTimeout(()=>openPanel(caseId),500);
-  }
-
-  function decorateCase(){
-    document.querySelectorAll("[data-case]").forEach(b=>{ if(b.parentElement?.querySelector("[data-case-evidence]")) return; const x=document.createElement("button"); x.className="mini"; x.dataset.caseEvidence="1"; x.textContent="Beweise"; x.onclick=e=>{e.stopPropagation();openPanel(b.dataset.case)}; b.parentElement.appendChild(x); });
-  }
-  function tick(){addNav();decorateCase();}
-  const t=setInterval(()=>{ if(document.querySelector(".sidebar nav")){tick();} },500);
-  setTimeout(()=>clearInterval(t),120000);
-  window.DonnerfaustEvidence={open:openPanel};
+  function addFile(folderId){const root=document.getElementById("modalroot");root.innerHTML=`<div class="modalback"><div class="modal"><div class="modalhead"><b>Beweismittel hinzufügen</b><button id="x">×</button></div><form id="fileForm"><label>Name<input name="name" required placeholder="z. B. Video 01 – Verfolgung"></label><label>Bild oder Video<input name="file" type="file" accept="image/*,video/*" required></label><div id="st" class="muted">Datei wird in den ausgewählten Beweisordner gespeichert.</div><div class="actions"><button type="button" class="btn outline" id="c">Abbrechen</button><button class="btn dark">Hochladen</button></div></form></div></div>`;root.querySelector("#x").onclick=root.querySelector("#c").onclick=()=>openPanel(activeCase);root.querySelector("#fileForm").onsubmit=e=>upload(e,folderId)}
+  async function upload(e,folderId){e.preventDefault();if(!client){alert("Supabase ist nicht verfügbar.");return}const f=new FormData(e.target),name=String(f.get("name")||"").trim(),file=f.get("file"),db=read(),folder=(db.evidence_folders||[]).find(x=>x.id===folderId);if(!folder||!(file instanceof File))return;const st=document.getElementById("st"),btn=e.target.querySelector("button[type=submit]");btn.disabled=true;st.textContent="Upload läuft…";const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=`folders/${folderId}/${Date.now()}-${safe}`;const {error}=await client.storage.from(BUCKET).upload(path,file,{contentType:file.type||"application/octet-stream",upsert:false});if(error){st.textContent="Upload fehlgeschlagen: "+error.message;btn.disabled=false;return}const publicUrl=client.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;folder.items=folder.items||[];folder.items.push({id:id(),name,url:publicUrl,type:file.type||"Datei",file_name:file.name,path,created_at:new Date().toISOString()});write(db);openPanel(activeCase)}
+  function decorateCase(){document.querySelectorAll("[data-case]").forEach(b=>{if(b.parentElement?.querySelector("[data-case-evidence]"))return;const x=document.createElement("button");x.className="mini";x.dataset.caseEvidence="1";x.textContent="Beweise";x.onclick=e=>{e.stopPropagation();openPanel(b.dataset.case)};b.parentElement.appendChild(x)})}
+  const t=setInterval(()=>{if(document.querySelector(".sidebar nav")){addNav();decorateCase()}},500);setTimeout(()=>clearInterval(t),120000);window.DonnerfaustEvidence={open:openPanel};
 })();
