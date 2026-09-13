@@ -1,11 +1,16 @@
 /* Beweise: Ordner mit beliebig vielen Bildern/Videos + ein gemeinsamer externer Link. */
 (() => {
   const URL="https://qsyijgvikxmwmhaiulne.supabase.co", KEY="sb_publishable_5qeUg0c0T0IyLh8g0cUj6Q_ZJYgZYJ_", BUCKET="evidence", STATE_KEY="donnerfaust_kanzlei_v1", VIEWER="./beweis.html";
-  const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;"," >":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+  const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
   const read=()=>{try{return JSON.parse(localStorage.getItem(STATE_KEY)||"{}")}catch{return {}}}; const write=x=>localStorage.setItem(STATE_KEY,JSON.stringify(x));
   const client=window.supabase?.createClient?window.supabase.createClient(URL,KEY):null; let activeCase="";
   const id=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  function addNav(){const nav=document.querySelector(".sidebar nav");if(!nav||nav.querySelector('[data-evidence-nav]'))return;const b=document.createElement("button");b.className="nav";b.dataset.evidenceNav="1";b.innerHTML="<i>🔎</i>Beweise";b.onclick=()=>openPanel("");nav.appendChild(b)}
+  function addNav(){
+    const nav=document.querySelector(".sidebar nav"); if(!nav||nav.querySelector('[data-evidence-nav]'))return;
+    const b=document.createElement("button"); b.className="nav"; b.dataset.evidenceNav="1"; b.innerHTML="<i>🔎</i>Beweise"; b.onclick=()=>openPanel("");
+    const docs=[...nav.querySelectorAll(".nav")].find(x=>x.dataset.nav==="documents" || x.textContent.includes("Dokumente"));
+    if(docs) docs.insertAdjacentElement("afterend",b); else nav.appendChild(b);
+  }
   function folderUrl(id){const u=new URL(VIEWER,location.href);u.searchParams.set("folder",id);return u.href}
   function openPanel(caseId=""){
     activeCase=caseId||"";const db=read(),cases=db.cases||[],folders=(db.evidence_folders||[]).filter(x=>!activeCase||x.case_id===activeCase);const root=document.getElementById("modalroot")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"modalroot"}));
