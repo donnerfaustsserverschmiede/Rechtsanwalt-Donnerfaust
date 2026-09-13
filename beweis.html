@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beweis – Rechtsanwalt Donnerfaust</title>
+<style>body{margin:0;background:#f4f6f8;color:#18212f;font-family:system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:1000px;margin:40px auto;padding:20px}.card{background:white;border:1px solid #e2e6eb;border-radius:18px;padding:24px;box-shadow:0 8px 30px #0000000d}.muted{color:#667085}.media{margin-top:22px;text-align:center;background:#111;border-radius:14px;overflow:hidden}.media img,.media video{display:block;max-width:100%;max-height:75vh;margin:auto}.top{display:flex;justify-content:space-between;gap:15px;align-items:center}.brand{font-weight:700}.download{display:inline-block;margin-top:18px;padding:10px 15px;border-radius:9px;background:#18212f;color:#fff;text-decoration:none}.error{padding:20px;border:1px solid #f0b4b4;border-radius:12px;background:#fff6f6}</style>
+</head>
+<body><div class="wrap"><div class="card" id="app"><div class="muted">Beweis wird geladen…</div></div></div>
+<script>
+(()=>{const p=new URLSearchParams(location.search),name=p.get('name')||'Beweis',url=p.get('url')||'',type=p.get('type')||'';const app=document.getElementById('app');if(!url){app.innerHTML='<div class="error"><b>Kein Beweis angegeben.</b><p class="muted">Dieser Link ist unvollständig.</p></div>';return}const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));let media='';if(type.startsWith('image/'))media=`<img src="${esc(url)}" alt="${esc(name)}">`;else if(type.startsWith('video/'))media=`<video src="${esc(url)}" controls playsinline></video>`;else media='<p>Dieser Dateityp kann in der Ansicht nicht direkt dargestellt werden.</p>';app.innerHTML=`<div class="top"><div class="brand">⚖ Rechtsanwalt Donnerfaust</div><div class="muted">Beweisansicht</div></div><hr><h1>${esc(name)}</h1><p class="muted">${esc(type)}</p><div class="media">${media}</div><a class="download" href="${esc(url)}" target="_blank" rel="noopener">Datei öffnen</a>`})()
+</script></body></html>
