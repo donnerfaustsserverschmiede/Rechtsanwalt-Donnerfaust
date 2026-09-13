@@ -1,11 +1,33 @@
 /* Rechnungen direkt in der jeweiligen Akte anzeigen */
 (() => {
   const DBKEY = "donnerfaust_kanzlei_v1";
-  const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;","'":"&#39;"}[m]));
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":">","\"":"&quot;","'":"&#39;"}[m]));
   const money = n => new Intl.NumberFormat("de-DE", {style:"currency", currency:"EUR"}).format(Number(n) || 0);
+
+  // Das alte Rechnungspanel der Aktenverwaltung wird nicht mehr benötigt.
+  // Rechnungen werden ausschließlich über das neue Finanzsystem verwaltet
+  // und hier in der Akte nur noch angezeigt.
+  function removeLegacyInvoicePanel(content){
+    [...content.querySelectorAll(".panel")].forEach(panel => {
+      const text = panel.textContent.replace(/\s+/g," ").trim();
+      const hasInvoiceHeading = /\bRechnungen\b/i.test(text);
+      const hasOldCreateButton = [...panel.querySelectorAll("button")].some(b =>
+        /^\s*\+\s*Rechnung\s*$/i.test(b.textContent.trim())
+      );
+      if(hasInvoiceHeading && hasOldCreateButton){
+        panel.remove();
+      }
+    });
+  }
+
   function addCaseInvoices(){
     const content=document.querySelector(".content");
-    if(!content||content.dataset.caseInvoicesAdded==="1")return;
+    if(!content)return;
+
+    // Alte "Rechnungen + Rechnung"-Sektion sicher entfernen.
+    removeLegacyInvoicePanel(content);
+
+    if(content.dataset.caseInvoicesAdded==="1")return;
     const eyebrow=[...content.querySelectorAll(".eyebrow")].find(x=>/^AKTE\s+/i.test(x.textContent.trim()));
     if(!eyebrow)return;
     const fileNumber=eyebrow.textContent.trim().replace(/^AKTE\s+/i,"").trim();
@@ -18,6 +40,7 @@
     if(documents)documents.parentNode.insertBefore(panel,documents);else content.appendChild(panel);
     content.dataset.caseInvoicesAdded="1";
   }
+
   new MutationObserver(()=>setTimeout(addCaseInvoices,0)).observe(document.body,{childList:true,subtree:true});
   setTimeout(addCaseInvoices,300);
 })();
