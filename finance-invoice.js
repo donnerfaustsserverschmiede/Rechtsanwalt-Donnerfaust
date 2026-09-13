@@ -1,25 +1,14 @@
 /* Kasse + Gebührenrechnungen – Zusatzmodul für das lokale Kanzleisystem */
 (() => {
   const DBKEY="donnerfaust_kanzlei_v1";
-
   const REGULAR_PRICES={
-    "Erstberatung / Erstgespräch":1000,
-    "Einfache Rechtsberatung":2500,
-    "Prüfung eines einfachen Falls":3500,
-    "Erstellung eines Schreibens / Antrags":4000,
-    "Außergerichtliche Vertretung":7500,
-    "Umfangreiche außergerichtliche Vertretung":12500,
-    "Vertretung bei Polizei / Vernehmung":7500,
-    "Gerichtliche Vertretung":15000,
-    "Umfangreiches Gerichtsverfahren":20000,
+    "Erstberatung / Erstgespräch":1000,"Einfache Rechtsberatung":2500,"Prüfung eines einfachen Falls":3500,
+    "Erstellung eines Schreibens / Antrags":4000,"Außergerichtliche Vertretung":7500,
+    "Umfangreiche außergerichtliche Vertretung":12500,"Vertretung bei Polizei / Vernehmung":7500,
+    "Gerichtliche Vertretung":15000,"Umfangreiches Gerichtsverfahren":20000,
     "Komplexes Gerichtsverfahren inkl. vollständiger Vorbereitung, Aktenprüfung, Schriftsätzen und Hauptverhandlung":25000
   };
-
-  const SPECIAL_PRICES={
-    "Dringender / kurzfristiger Auftrag":5000,
-    "Zusätzlicher Termin außerhalb der Kanzlei":2500
-  };
-
+  const SPECIAL_PRICES={"Dringender / kurzfristiger Auftrag":5000,"Zusätzlicher Termin außerhalb der Kanzlei":2500};
   const read=()=>{try{return JSON.parse(localStorage.getItem(DBKEY)||"{}")}catch{return {}}};
   const write=d=>localStorage.setItem(DBKEY,JSON.stringify(d));
   const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
@@ -29,100 +18,13 @@
   const token=()=>{const a=new Uint8Array(7);crypto.getRandomValues(a);return [...a].map(x=>x.toString(36).padStart(2,"0")).join("").slice(0,10)};
   const base=()=>location.origin+location.pathname.replace(/[^/]*$/,'');
   const ensure=d=>{d.cashbook ||= [];d.invoices ||= [];return d};
-
-  function injectNav(){
-    const nav=document.querySelector("aside nav");
-    if(!nav||nav.dataset.financeReady)return;
-    nav.dataset.financeReady="1";
-    const mk=(id,icon,text)=>{const b=document.createElement("button");b.className="nav";b.dataset.financeNav=id;b.innerHTML=`<i>${icon}</i>${text}`;return b};
-    nav.append(mk("cash","▣","Kasse"));
-    nav.append(mk("billing","€","Rechnungen"));
-    nav.addEventListener("click",e=>{const b=e.target.closest("[data-finance-nav]");if(!b)return;e.preventDefault();e.stopImmediatePropagation();showPage(b.dataset.financeNav)},true);
-  }
-
-  function pageShell(title,content){
-    const root=document.querySelector(".content");
-    if(!root)return;
-    root.innerHTML=`<div class="intro"><div><div class="eyebrow">KANZLEI / FINANZEN</div><h1>${title}</h1></div></div>${content}`;
-  }
-
-  function cash(){
-    const d=ensure(read());
-    const balance=d.cashbook.reduce((s,x)=>s+(x.kind==="in"?Number(x.amount)||0:-(Number(x.amount)||0)),0);
-    pageShell("Kassensystem",`<div class="stats"><div class="stat"><span>€</span><div><small>KANZLEIVERMÖGEN</small><b>${money(balance)}</b></div></div><div class="stat"><span>↗</span><div><small>EINNAHMEN</small><b>${money(d.cashbook.filter(x=>x.kind==='in').reduce((s,x)=>s+Number(x.amount||0),0))}</b></div></div><div class="stat"><span>↘</span><div><small>AUSGABEN</small><b>${money(d.cashbook.filter(x=>x.kind==='out').reduce((s,x)=>s+Number(x.amount||0),0))}</b></div></div></div><div class="panel"><div class="panelhead"><b>Kassenbuch</b><button class="btn dark" id="cashAdd">+ Geld hinzufügen</button><button class="btn outline" id="cashSub">− Geld abbuchen</button></div><div>${d.cashbook.slice().reverse().map(x=>`<div class="listrow"><b>${x.kind==='in'?'+':'−'} ${money(x.amount)}</b><small>${esc(x.reason)} · ${esc(x.date)}</small><button class="mini" data-cash-del="${x.id}">Löschen</button></div>`).join('')||'<p class="muted">Noch keine Kassenbewegungen.</p>'}</div></div>`);
-    document.getElementById("cashAdd").onclick=()=>cashForm("in");
-    document.getElementById("cashSub").onclick=()=>cashForm("out");
-    document.querySelectorAll("[data-cash-del]").forEach(b=>b.onclick=()=>{if(confirm('Kassenbuch-Eintrag wirklich löschen?')){const d=ensure(read());d.cashbook=d.cashbook.filter(x=>x.id!==b.dataset.cashDel);write(d);cash()}});
-  }
-
-  function cashForm(kind){
-    const amount=prompt(kind==='in'?"Betrag hinzufügen (€):":"Betrag abbuchen (€):");
-    if(amount===null)return;
-    const n=Number(String(amount).replace(',','.'));
-    if(!Number.isFinite(n)||n<=0)return alert('Bitte einen gültigen positiven Betrag eingeben.');
-    const reason=prompt('Grund:');
-    if(!reason?.trim())return;
-    const d=ensure(read());
-    d.cashbook.push({id:uid(),kind,amount:n,reason:reason.trim(),date:new Date().toLocaleString('de-DE')});
-    write(d);cash();
-  }
-
-  function invoiceTotal(lines){return lines.reduce((s,x)=>s+Number(x.price||0),0)}
-
-  function serviceSection(title,items){
-    return `<div style="margin-top:16px"><h3 style="margin:0 0 8px">${title}</h3>${Object.entries(items).map(([n,p])=>`<label style="display:flex;align-items:flex-start;gap:10px;margin:8px 0;padding:8px 0"><input type="checkbox" name="service" value="${esc(n)}" data-price="${p}"><span style="flex:1">${esc(n)}</span><strong>${money(p)}</strong></label>`).join('')}</div>`;
-  }
-
-  function invoiceForm(){
-    const d=ensure(read());
-    if(!d.clients?.length)return alert('Bitte zuerst einen Mandanten anlegen.');
-    const box=document.createElement('div');
-    box.className='modalback';
-    box.innerHTML=`<div class="modal" style="max-width:800px;max-height:90vh;overflow:auto"><div class="modalhead"><b>Neue Rechnung nach Preisliste</b><button id="fiClose">×</button></div><form id="fiForm"><label>Mandant<select name="client_id" required>${d.clients.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>Akte<select name="case_id"><option value="">Keine Akte</option>${(d.cases||[]).map(c=>`<option value="${esc(c.id)}">${esc(c.file_number)} · ${esc(c.title)}</option>`).join('')}</select></label><div style="border-top:1px solid #ddd;margin-top:14px;padding-top:4px">${serviceSection('Reguläre Leistungen',REGULAR_PRICES)}${serviceSection('➕ Sonderleistungen',SPECIAL_PRICES)}</div><div style="margin-top:18px;padding:16px;border:1px solid #ddd;border-radius:12px"><div><small>Grundhonorar</small> <b id="fiRegular">0,00 €</b></div><div><small>Sonderleistungen</small> <b id="fiSpecial">0,00 €</b></div><div style="margin-top:8px;font-size:1.15em"><b>Rechnungswert: <span id="fiTotal">0,00 €</span></b></div></div><div class="actions"><button type="button" class="btn outline" id="fiCancel">Abbrechen</button><button class="btn dark">Rechnung erstellen</button></div></form></div>`;
-    document.body.appendChild(box);
-    const close=()=>box.remove();
-    box.querySelector('#fiClose').onclick=box.querySelector('#fiCancel').onclick=close;
-    const update=()=>{
-      const checked=[...box.querySelectorAll('input[name=service]:checked')];
-      const regular=checked.filter(x=>Object.prototype.hasOwnProperty.call(REGULAR_PRICES,x.value)).reduce((s,x)=>s+Number(x.dataset.price),0);
-      const special=checked.filter(x=>Object.prototype.hasOwnProperty.call(SPECIAL_PRICES,x.value)).reduce((s,x)=>s+Number(x.dataset.price),0);
-      box.querySelector('#fiRegular').textContent=money(regular);
-      box.querySelector('#fiSpecial').textContent=money(special);
-      box.querySelector('#fiTotal').textContent=money(regular+special);
-    };
-    box.querySelectorAll('input[name=service]').forEach(x=>x.onchange=update);
-    box.querySelector('#fiForm').onsubmit=e=>{
-      e.preventDefault();
-      const f=new FormData(e.target);
-      const lines=[...box.querySelectorAll('input[name=service]:checked')].map(x=>({name:x.value,price:Number(x.dataset.price),category:Object.prototype.hasOwnProperty.call(SPECIAL_PRICES,x.value)?'Sonderleistung':'Reguläre Leistung'}));
-      if(!lines.length)return alert('Bitte mindestens eine Leistung auswählen.');
-      const inv={id:uid(),invoice_number:'RE-'+new Date().getFullYear()+'-'+String((d.invoices.length||0)+1).padStart(3,'0'),client_id:f.get('client_id'),case_id:f.get('case_id'),lines,amount:invoiceTotal(lines),date:today(),status:'Offen'};
-      d.invoices.push(inv);write(d);close();billing();
-    };
-  }
-
-  function billing(){
-    const d=ensure(read());
-    pageShell("Rechnungen",`<div class="intro"><div><p>Rechnungen anhand der Gebührenordnung erstellen, verwalten und als schreibgeschützten Link weitergeben.</p></div><button class="btn dark" id="newFi">+ Rechnung erstellen</button></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>RECHNUNG</th><th>MANDANT</th><th>AKTE</th><th>LEISTUNGEN</th><th>BETRAG</th><th>STATUS</th><th></th></tr></thead><tbody>${d.invoices.slice().reverse().map(i=>{const c=d.clients.find(x=>x.id===i.client_id),a=d.cases?.find(x=>x.id===i.case_id);return `<tr><td><b>${esc(i.invoice_number)}</b><small>${esc(i.date||'')}</small></td><td>${esc(c?.name||'—')}</td><td>${esc(a?.file_number||'—')}</td><td>${(i.lines||[]).map(x=>`${esc(x.name)}${x.category==='Sonderleistung'?' <small>(Sonderleistung)</small>':''}`).join('<br>')}</td><td><b>${money(i.amount)}</b></td><td>${esc(i.status||'Offen')}</td><td><button class="mini" data-inv-share="${i.id}">🔗 Link</button> <button class="mini" data-inv-del="${i.id}">Löschen</button></td></tr>`}).join('')||'<tr><td colspan="7">Keine Rechnungen vorhanden.</td></tr>'}</tbody></table></div></div>`);
-    document.getElementById('newFi').onclick=invoiceForm;
-    document.querySelectorAll('[data-inv-del]').forEach(b=>b.onclick=()=>{if(confirm('Rechnung wirklich endgültig löschen?')){const d=ensure(read());d.invoices=d.invoices.filter(x=>x.id!==b.dataset.invDel);write(d);billing()}});
-    document.querySelectorAll('[data-inv-share]').forEach(b=>b.onclick=()=>shareInvoice(b.dataset.invShare));
-  }
-
-  async function shareInvoice(id){
-    const d=ensure(read()),i=d.invoices.find(x=>x.id===id);if(!i)return;
-    const cloud=window.DonnerfaustCloud?.supabase;
-    if(!cloud)return alert('Supabase ist noch nicht verfügbar.');
-    const c=d.clients.find(x=>x.id===i.client_id),a=d.cases?.find(x=>x.id===i.case_id);
-    const snapshot={version:1,invoice:{invoice_number:i.invoice_number,date:i.date,status:i.status,amount:i.amount,lines:i.lines||[]},client:c?{name:c.name,email:c.email,address:c.address}:null,case:a?{file_number:a.file_number,title:a.title}:null};
-    const t=token();
-    const {error}=await cloud.from('shared_invoice_access').insert({token:t,invoice_number:i.invoice_number,snapshot,active:true});
-    if(error){console.error(error);return alert('Freigabelink konnte nicht erstellt werden. Hast du supabase_billing.sql ausgeführt?')}
-    const link=`${base()}rechnung/${encodeURIComponent(i.invoice_number)}/${t}`;
-    prompt('Rechnungslink – nur Lesen:',link);
-  }
-
-  function showPage(which){if(which==='cash')cash();else billing()}
-  function watch(){injectNav();const root=document.getElementById('app');if(!root)return;new MutationObserver(()=>injectNav()).observe(root,{childList:true,subtree:true});}
-  watch();
+  function injectNav(){const nav=document.querySelector("aside nav");if(!nav||nav.dataset.financeReady)return;nav.dataset.financeReady="1";const mk=(id,icon,text)=>{const b=document.createElement("button");b.className="nav";b.dataset.financeNav=id;b.innerHTML=`<i>${icon}</i>${text}`;return b};nav.append(mk("cash","▣","Kasse"),mk("billing","€","Rechnungen"));nav.addEventListener("click",e=>{const b=e.target.closest("[data-finance-nav]");if(!b)return;e.preventDefault();e.stopImmediatePropagation();showPage(b.dataset.financeNav)},true)}
+  function pageShell(title,content){const root=document.querySelector(".content");if(!root)return;root.innerHTML=`<div class="intro"><div><div class="eyebrow">KANZLEI / FINANZEN</div><h1>${title}</h1></div></div>${content}`}
+  function cash(){const d=ensure(read());const balance=d.cashbook.reduce((s,x)=>s+(x.kind==="in"?Number(x.amount)||0:-(Number(x.amount)||0)),0);pageShell("Kassensystem",`<div class="stats"><div class="stat"><span>€</span><div><small>KANZLEIVERMÖGEN</small><b>${money(balance)}</b></div></div></div><div class="panel"><div class="panelhead"><b>Kassenbuch</b><button class="btn dark" id="cashAdd">+ Geld hinzufügen</button><button class="btn outline" id="cashSub">− Geld abbuchen</button></div>${d.cashbook.slice().reverse().map(x=>`<div class="listrow"><b>${x.kind==='in'?'+':'−'} ${money(x.amount)}</b><small>${esc(x.reason)} · ${esc(x.date)}</small><button class="mini" data-cash-del="${x.id}">Löschen</button></div>`).join('')||'<p class="muted">Noch keine Kassenbewegungen.</p>'}</div>`);document.getElementById("cashAdd").onclick=()=>cashForm("in");document.getElementById("cashSub").onclick=()=>cashForm("out");document.querySelectorAll("[data-cash-del]").forEach(b=>b.onclick=()=>{if(confirm('Kassenbuch-Eintrag wirklich löschen?')){const d=ensure(read());d.cashbook=d.cashbook.filter(x=>x.id!==b.dataset.cashDel);write(d);cash()}})}
+  function cashForm(kind){const amount=prompt(kind==='in'?"Betrag hinzufügen (€):":"Betrag abbuchen (€):");if(amount===null)return;const n=Number(String(amount).replace(',','.'));if(!Number.isFinite(n)||n<=0)return alert('Bitte einen gültigen positiven Betrag eingeben.');const reason=prompt('Grund:');if(!reason?.trim())return;const d=ensure(read());d.cashbook.push({id:uid(),kind,amount:n,reason:reason.trim(),date:new Date().toLocaleString('de-DE')});write(d);cash()}
+  function serviceSection(title,items){return `<div style="margin-top:16px"><h3 style="margin:0 0 8px">${title}</h3>${Object.entries(items).map(([n,p])=>`<label style="display:flex;align-items:flex-start;gap:10px;margin:8px 0;padding:8px 0"><input type="checkbox" name="service" value="${esc(n)}" data-price="${p}"><span style="flex:1">${esc(n)}</span><strong>${money(p)}</strong></label>`).join('')}</div>`}
+  function invoiceForm(){const d=ensure(read());if(!d.clients?.length)return alert('Bitte zuerst einen Mandanten anlegen.');const box=document.createElement('div');box.className='modalback';box.innerHTML=`<div class="modal" style="max-width:800px;max-height:90vh;overflow:auto"><div class="modalhead"><b>Neue Rechnung nach Preisliste</b><button id="fiClose">×</button></div><form id="fiForm"><label>Mandant<select name="client_id" required>${d.clients.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>Akte<select name="case_id"><option value="">Keine Akte</option>${(d.cases||[]).map(c=>`<option value="${esc(c.id)}">${esc(c.file_number)} · ${esc(c.title)}</option>`).join('')}</select></label>${serviceSection('Reguläre Leistungen',REGULAR_PRICES)}${serviceSection('➕ Sonderleistungen',SPECIAL_PRICES)}<div style="margin-top:18px;padding:16px;border:1px solid #ddd;border-radius:12px"><div><small>Grundhonorar</small> <b id="fiRegular">0,00 €</b></div><div><small>Sonderleistungen</small> <b id="fiSpecial">0,00 €</b></div><div style="margin-top:8px;font-size:1.15em"><b>Rechnungswert: <span id="fiTotal">0,00 €</span></b></div></div><div class="actions"><button type="button" class="btn outline" id="fiCancel">Abbrechen</button><button class="btn dark">Rechnung erstellen</button></div></form></div>`;document.body.appendChild(box);const close=()=>box.remove();box.querySelector('#fiClose').onclick=box.querySelector('#fiCancel').onclick=close;const update=()=>{const checked=[...box.querySelectorAll('input[name=service]:checked')];const regular=checked.filter(x=>Object.prototype.hasOwnProperty.call(REGULAR_PRICES,x.value)).reduce((s,x)=>s+Number(x.dataset.price),0);const special=checked.filter(x=>Object.prototype.hasOwnProperty.call(SPECIAL_PRICES,x.value)).reduce((s,x)=>s+Number(x.dataset.price),0);box.querySelector('#fiRegular').textContent=money(regular);box.querySelector('#fiSpecial').textContent=money(special);box.querySelector('#fiTotal').textContent=money(regular+special)};box.querySelectorAll('input[name=service]').forEach(x=>x.onchange=update);box.querySelector('#fiForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);const lines=[...box.querySelectorAll('input[name=service]:checked')].map(x=>({name:x.value,price:Number(x.dataset.price),category:Object.prototype.hasOwnProperty.call(SPECIAL_PRICES,x.value)?'Sonderleistung':'Reguläre Leistung'}));if(!lines.length)return alert('Bitte mindestens eine Leistung auswählen.');const inv={id:uid(),invoice_number:'RE-'+new Date().getFullYear()+'-'+String((d.invoices.length||0)+1).padStart(3,'0'),client_id:f.get('client_id'),case_id:f.get('case_id'),lines,amount:lines.reduce((s,x)=>s+x.price,0),date:today(),status:'Offen'};d.invoices.push(inv);write(d);close();billing()}};
+  function billing(){const d=ensure(read());pageShell("Rechnungen",`<div class="intro"><div><p>Rechnungen verwalten und als schreibgeschützten Link weitergeben.</p></div><button class="btn dark" id="newFi">+ Rechnung erstellen</button></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>RECHNUNG</th><th>MANDANT</th><th>AKTE</th><th>LEISTUNGEN</th><th>BETRAG</th><th>STATUS</th><th></th></tr></thead><tbody>${d.invoices.slice().reverse().map(i=>{const c=d.clients.find(x=>x.id===i.client_id),a=d.cases?.find(x=>x.id===i.case_id);return `<tr><td><b>${esc(i.invoice_number)}</b><small>${esc(i.date||'')}</small></td><td>${esc(c?.name||'—')}</td><td>${esc(a?.file_number||'—')}</td><td>${(i.lines||[]).map(x=>`${esc(x.name)}${x.category==='Sonderleistung'?' <small>(Sonderleistung)</small>':''}`).join('<br>')}</td><td><b>${money(i.amount)}</b></td><td>${esc(i.status||'Offen')}</td><td><button class="mini" data-inv-share="${i.id}">🔗 Link</button> <button class="mini" data-inv-del="${i.id}">Löschen</button></td></tr>`}).join('')||'<tr><td colspan="7">Keine Rechnungen vorhanden.</td></tr>'}</tbody></table></div></div>`);document.getElementById('newFi').onclick=invoiceForm;document.querySelectorAll('[data-inv-del]').forEach(b=>b.onclick=()=>{if(confirm('Rechnung wirklich endgültig löschen?')){const d=ensure(read());d.invoices=d.invoices.filter(x=>x.id!==b.dataset.invDel);write(d);billing()}});document.querySelectorAll('[data-inv-share]').forEach(b=>b.onclick=()=>shareInvoice(b.dataset.invShare))}
+  async function shareInvoice(id){const d=ensure(read()),i=d.invoices.find(x=>x.id===id);if(!i)return;const cloud=window.DonnerfaustCloud?.supabase;if(!cloud)return alert('Supabase ist noch nicht verfügbar.');const c=d.clients.find(x=>x.id===i.client_id),a=d.cases?.find(x=>x.id===i.case_id);const snapshot={version:1,invoice:{invoice_number:i.invoice_number,date:i.date,status:i.status,amount:i.amount,lines:i.lines||[]},client:c?{name:c.name,email:c.email,address:c.address}:null,case:a?{file_number:a.file_number,title:a.title}:null};const t=token();const {error}=await cloud.from('shared_invoice_access').insert({token:t,invoice_number:i.invoice_number,snapshot,active:true});if(error){console.error(error);return alert('Freigabelink konnte nicht erstellt werden. Hast du supabase_billing.sql ausgeführt?')}const link=`${base()}rechnung/${encodeURIComponent(i.invoice_number)}/${t}`;prompt('Rechnungslink – nur Lesen:',link)}
+  function showPage(which){if(which==='cash')cash();else billing()} function watch(){injectNav();const root=document.getElementById('app');if(!root)return;new MutationObserver(()=>injectNav()).observe(root,{childList:true,subtree:true})} watch();
 })();
