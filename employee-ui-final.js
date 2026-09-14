@@ -17,12 +17,13 @@
   function copyLink(box){
     const ta=box.querySelector("#dfEmployeeLink");if(!ta)return;
     const done=()=>{const m=box.querySelector("#dfCopyMsg");if(m)m.textContent="✓ Einladungslink wurde kopiert."};
-    if(navigator.clipboard?.writeText){navigator.clipboard.writeText(ta.value).then(done).catch(()=>fallback())}else fallback();
-    function fallback(){try{ta.focus();ta.select();document.execCommand("copy");done()}catch{ta.focus();ta.select();const m=box.querySelector("#dfCopyMsg");if(m)m.textContent="Bitte den markierten Link manuell kopieren."}}
+    const fallback=()=>{try{ta.focus();ta.select();document.execCommand("copy");done()}catch{ta.focus();ta.select();const m=box.querySelector("#dfCopyMsg");if(m)m.textContent="Bitte den markierten Link manuell kopieren."}};
+    if(navigator.clipboard?.writeText)navigator.clipboard.writeText(ta.value).then(done).catch(fallback);else fallback();
   }
   function showLink(box,link){
-    box.querySelector("#dfEmployeeResult").innerHTML=`<div style="margin-top:14px;padding:14px;border-radius:12px;background:#f3f4f6"><b>Einladungslink erstellt</b><textarea id="dfEmployeeLink" readonly style="width:100%;height:76px;box-sizing:border-box;margin-top:9px;padding:9px">${esc(link)}</textarea><button type="button" class="btn dark" id="dfCopyLink" style="margin-top:8px;width:100%">🔗 Link kopieren</button><div id="dfCopyMsg" style="margin-top:7px;font-size:13px"></div></div>`;
+    box.querySelector("#dfEmployeeResult").innerHTML=`<div style="margin-top:14px;padding:14px;border-radius:12px;background:#f3f4f6"><b>Einladungslink erstellt</b><textarea id="dfEmployeeLink" readonly style="width:100%;height:76px;box-sizing:border-box;margin-top:9px;padding:9px">${esc(link)}</textarea><button type="button" class="btn dark" id="dfCopyLink" style="margin-top:8px;width:100%">🔗 Link kopieren</button><div id="dfCopyMsg" style="margin-top:7px;font-size:13px"></div><button type="button" class="btn outline" id="dfFinish" style="margin-top:10px;width:100%">Fertig</button></div>`;
     box.querySelector("#dfCopyLink").onclick=()=>copyLink(box);
+    box.querySelector("#dfFinish").onclick=()=>{box.remove();if(typeof render==="function")render()};
   }
   function open(mode="new",id=null){
     const old=document.getElementById("dfEmployeeFinalModal");if(old)old.remove();
@@ -34,10 +35,9 @@
     box.querySelector("#dfeff").onsubmit=e=>{
       e.preventDefault();const f=new FormData(e.target),name=String(f.get("name")||"").trim(),email=String(f.get("email")||"").trim(),role=String(f.get("role")||""),status=String(f.get("status")||"Online");
       const db=read();db.employees ||= [];
-      if(emp){Object.assign(emp,{name,email,role,status});const target=db.employees.find(e=>String(e.id)===String(emp.id));if(target)Object.assign(target,emp);save(db);showLink(box,makeLink(email,name,role));}
-      else {const n={id:uid(),name,email,role,status};db.employees.push(n);save(db);showLink(box,makeLink(email,name,role));}
-      if(typeof render==="function")render();
-      enhance();
+      if(emp){const target=db.employees.find(e=>String(e.id)===String(emp.id));if(target)Object.assign(target,{name,email,role,status});save(db)}
+      else {db.employees.push({id:uid(),name,email,role,status});save(db)}
+      showLink(box,makeLink(email,name,role));
     };
   }
   function deleteEmployee(id){
@@ -52,8 +52,8 @@
     const h=[...document.querySelectorAll("h1,h2,h3")].find(x=>/Mitarbeiter/.test(x.textContent||""));
     if(!h)return;
     const intro=h.closest(".intro");
-    const add=intro?.querySelector('[data-action="newemployee"]');
-    if(add){add.dataset.action="df-newemployee";add.textContent="+ Mitarbeiter";add.onclick=e=>{e.preventDefault();e.stopImmediatePropagation();open("new")};}
+    const add=intro?.querySelector('[data-action="newemployee"], [data-action="df-newemployee"]');
+    if(add&&!add.dataset.dfBound){add.dataset.dfBound="1";add.textContent="+ Mitarbeiter";add.onclick=e=>{e.preventDefault();e.stopPropagation();open("new")};}
     const d=read(),employees=d.employees||[];
     const cards=[...document.querySelectorAll(".cards > .client")];
     cards.forEach((card,i)=>{
@@ -69,8 +69,7 @@
   function intercept(){
     normalizeEmployees();
     document.addEventListener("click",e=>{const b=e.target.closest('[data-action="newemployee"]');if(b){e.preventDefault();e.stopImmediatePropagation();open("new")}},true);
-    setInterval(enhance,500);
-    enhance();
+    setInterval(enhance,500);enhance();
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",intercept);else intercept();
 })();
