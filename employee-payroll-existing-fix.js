@@ -1,6 +1,6 @@
 /* Rückwirkende Mitarbeitervergütung – bestehende Rechnungen bleiben auszahlbar */
 (() => {
-  const DBKEY="donnerfaust_kanzlei_v1", PAYKEY="donnerfaust_employee_pay_v3";
+  const DBKEY="donnerfaust_kanzlei_v1", PAYKEY="donnerfaust_employee_pay_v3", FLAG="donnerfaust_payroll_existing_repair_v1";
   const read=()=>{try{return JSON.parse(localStorage.getItem(DBKEY)||"{}")}catch{return{}}};
   const readPay=()=>{try{return JSON.parse(localStorage.getItem(PAYKEY)||"{}")}catch{return{}}};
   const savePay=p=>localStorage.setItem(PAYKEY,JSON.stringify(p));
@@ -19,10 +19,18 @@
       if(e.role==="Sekretär")return;
       p[e.id] ||= {hours:{},payout:"weekly",paid:0,credited:{}};
       p[e.id].hours ||= {};p[e.id].payout ||= "weekly";p[e.id].paid=Number(p[e.id].paid)||0;p[e.id].credited ||= {};
-      // Bereits vorhandene bezahlte, zugeordnete Rechnungen dürfen NICHT bei der
-      // Migration als "bereits ausgezahlt" markiert werden. Die Payroll berechnet
-      // sie dynamisch mit 20 %, bis eine echte Auszahlung erfolgt.
     });
+    // Einmalige Reparatur der bisherigen Migration: sie hatte vorhandene
+    // bezahlte Rechnungen fälschlich als bereits ausgezahlt markiert. Diese
+    // Markierungen werden genau einmal entfernt. Künftige echte Auszahlungen
+    // setzen die Markierungen wieder korrekt.
+    if(localStorage.getItem(FLAG)!=="done"){
+      d.employees.filter(e=>e.role!=="Sekretär").forEach(e=>{
+        const c=p[e.id]?.credited||{};
+        d.invoices.filter(i=>paid(i)&&assigned(i,e)).forEach(i=>{if(Object.prototype.hasOwnProperty.call(c,i.id)){delete c[i.id];changed=true;}});
+      });
+      localStorage.setItem(FLAG,"done");
+    }
     if(changed)localStorage.setItem(DBKEY,JSON.stringify(d));
     savePay(p);
   }
