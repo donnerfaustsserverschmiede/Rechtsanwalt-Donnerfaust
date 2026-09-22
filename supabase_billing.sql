@@ -21,5 +21,8 @@ create policy "Public can create shared invoices"
 on public.shared_invoice_access for insert to anon
 with check (active = true);
 
+grant select, insert on table public.shared_invoice_access to anon;
+grant select, insert on table public.shared_invoice_access to authenticated;
+
 create index if not exists shared_invoice_access_token_idx on public.shared_invoice_access(token);
 create index if not exists shared_invoice_access_invoice_number_idx on public.shared_invoice_access(invoice_number);
